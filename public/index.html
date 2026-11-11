@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" dir="ltr" class="dark">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart PDF Splitter</title>
+    <title>Smart PDF Splitter Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = { darkMode: 'class' };
@@ -21,9 +21,9 @@
         border: 3px solid #f3f3f3;
         border-radius: 50%;
         border-top: 3px solid #3b82f6;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
+        width: 22px;
+        height: 22px;
+        animation: spin 0.8s linear infinite;
       }
       @keyframes spin {
         0% {
@@ -35,25 +35,27 @@
       }
     </style>
   </head>
-  <body
-    class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 transition-colors duration-300"
-  >
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-lg">
+  <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+    <!-- Toast Notification -->
+    <div
+      id="toast"
+      class="fixed top-5 right-5 hidden bg-red-600 text-white px-5 py-3 rounded-lg shadow-lg transition-all duration-300 z-50 text-sm font-medium"
+    ></div>
+
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-8 w-full max-w-lg">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">Smart PDF Splitter</h1>
-        <p class="text-gray-500 dark:text-gray-400 text-sm">
-          Upload your file, select a split method, and download the zipped result instantly.
-        </p>
+        <h1 class="text-3xl font-bold text-blue-400 mb-2">Smart PDF Splitter</h1>
+        <p class="text-gray-400 text-sm">Upload, split by count or range, and download as ZIP.</p>
       </div>
 
       <form id="pdfForm" class="space-y-6">
         <!-- Drag and Drop Area -->
         <div
           id="dropzone"
-          class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer transition-all duration-200 hover:border-blue-500"
+          class="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center cursor-pointer transition-all duration-200 hover:border-blue-500"
         >
           <input type="file" id="pdfFile" accept="application/pdf" class="hidden" required />
-          <div class="text-gray-500 dark:text-gray-400">
+          <div class="text-gray-400">
             <svg class="mx-auto h-12 w-12 mb-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 stroke-linecap="round"
@@ -62,34 +64,60 @@
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
               />
             </svg>
-            <span id="fileName" class="block font-medium">Click to upload or drag & drop</span>
-            <span class="text-xs mt-1 block">PDF files only</span>
+            <span id="fileName" class="block font-medium text-gray-200">Click to upload or drag & drop</span>
+            <span id="fileInfo" class="text-xs text-gray-500 mt-1 block">PDF files only</span>
           </div>
         </div>
 
-        <!-- Split Options -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium mb-2">Split Mode</label>
-            <select
-              id="splitMode"
-              class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-            >
-              <option value="byPages">Every X pages per file</option>
-              <option value="byFiles">Split into X files</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-2">Value (X)</label>
-            <input
-              type="number"
-              id="splitValue"
-              min="1"
-              value="1"
-              class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-              required
-            />
-          </div>
+        <!-- Split Mode Selection -->
+        <div>
+          <label class="block text-sm font-medium mb-2">Split Mode</label>
+          <select
+            id="splitMode"
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="byPages">Split every X pages</option>
+            <option value="byFiles">Split into X equal files</option>
+            <option value="customRange">Custom page range (e.g. 1-3, 5, 8-10)</option>
+          </select>
+        </div>
+
+        <!-- Dynamic Input Fields -->
+        <div id="numericValueGroup">
+          <label class="block text-sm font-medium mb-2" id="valueLabel">Pages per file (X)</label>
+          <input
+            type="number"
+            id="splitValue"
+            min="1"
+            value="1"
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+
+        <div id="customRangeGroup" class="hidden">
+          <label class="block text-sm font-medium mb-2">Page Selection</label>
+          <input
+            type="text"
+            id="customRange"
+            placeholder="e.g. 1-4, 7, 10-12"
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+
+        <!-- File Naming Pattern -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Output Naming Pattern (Optional)</label>
+          <input
+            type="text"
+            id="outputName"
+            placeholder="e.g. Document_$X or Chapter"
+            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+          <p class="text-xs text-gray-400 mt-1">
+            Use <code class="bg-gray-700 text-blue-400 px-1 rounded">$X</code> for index (e.g.
+            <code class="text-gray-300">Doc_$X</code> &rarr; <code class="text-gray-300">Doc_1.pdf</code>). Defaults to
+            original file name.
+          </p>
         </div>
 
         <!-- Submit Button -->
@@ -108,10 +136,44 @@
       const dropzone = document.getElementById('dropzone');
       const fileInput = document.getElementById('pdfFile');
       const fileName = document.getElementById('fileName');
+      const fileInfo = document.getElementById('fileInfo');
+      const splitMode = document.getElementById('splitMode');
+      const numericValueGroup = document.getElementById('numericValueGroup');
+      const customRangeGroup = document.getElementById('customRangeGroup');
+      const valueLabel = document.getElementById('valueLabel');
       const form = document.getElementById('pdfForm');
       const submitBtn = document.getElementById('submitBtn');
       const btnText = document.getElementById('btnText');
       const btnLoader = document.getElementById('btnLoader');
+      const toast = document.getElementById('toast');
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 4000);
+      }
+
+      splitMode.addEventListener('change', () => {
+        const mode = splitMode.value;
+        if (mode === 'customRange') {
+          numericValueGroup.classList.add('hidden');
+          customRangeGroup.classList.remove('hidden');
+        } else {
+          numericValueGroup.classList.remove('hidden');
+          customRangeGroup.classList.add('hidden');
+          valueLabel.textContent = mode === 'byPages' ? 'Pages per file (X)' : 'Number of output files (X)';
+        }
+      });
+
+      function handleFile(file) {
+        if (file && file.type === 'application/pdf') {
+          const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+          fileName.textContent = file.name;
+          fileInfo.textContent = `Size: ${sizeMB} MB`;
+        } else {
+          showToast('Please select a valid PDF file.');
+        }
+      }
 
       dropzone.addEventListener('click', () => fileInput.click());
       dropzone.addEventListener('dragover', e => {
@@ -124,31 +186,36 @@
         dropzone.classList.remove('drag-active');
         if (e.dataTransfer.files.length) {
           fileInput.files = e.dataTransfer.files;
-          fileName.textContent = fileInput.files[0].name;
+          handleFile(fileInput.files[0]);
         }
       });
 
       fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) fileName.textContent = fileInput.files[0].name;
+        if (fileInput.files.length) handleFile(fileInput.files[0]);
       });
 
       form.addEventListener('submit', async e => {
         e.preventDefault();
-        if (!fileInput.files[0]) return alert('Please select a PDF file first.');
+        if (!fileInput.files[0]) return showToast('Please select a PDF file first.');
 
         const formData = new FormData();
         formData.append('pdfFile', fileInput.files[0]);
-        formData.append('splitMode', document.getElementById('splitMode').value);
+        formData.append('splitMode', splitMode.value);
         formData.append('splitValue', document.getElementById('splitValue').value);
+        formData.append('customRange', document.getElementById('customRange').value);
+        formData.append('outputName', document.getElementById('outputName').value);
 
-        btnText.textContent = 'Splitting & Compressing...';
+        btnText.textContent = 'Processing...';
         btnLoader.classList.remove('hidden');
         submitBtn.disabled = true;
 
         try {
           const response = await fetch('/api/split', { method: 'POST', body: formData });
 
-          if (!response.ok) throw new Error('Server processing error');
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || 'Server processing error.');
+          }
 
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
@@ -160,7 +227,7 @@
           a.remove();
           window.URL.revokeObjectURL(url);
         } catch (error) {
-          alert(error.message);
+          showToast(error.message);
         } finally {
           btnText.textContent = 'Split PDF Now';
           btnLoader.classList.add('hidden');
