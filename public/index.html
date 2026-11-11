@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart PDF Splitter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { darkMode: 'class' };
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .drag-active {
+        border-color: #3b82f6 !important;
+        background-color: rgba(59, 130, 246, 0.1);
+      }
+      .loader {
+        border: 3px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 3px solid #3b82f6;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 transition-colors duration-300"
+  >
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-lg">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">Smart PDF Splitter</h1>
+        <p class="text-gray-500 dark:text-gray-400 text-sm">
+          Upload your file, select a split method, and download the zipped result instantly.
+        </p>
+      </div>
+
+      <form id="pdfForm" class="space-y-6">
+        <!-- Drag and Drop Area -->
+        <div
+          id="dropzone"
+          class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer transition-all duration-200 hover:border-blue-500"
+        >
+          <input type="file" id="pdfFile" accept="application/pdf" class="hidden" required />
+          <div class="text-gray-500 dark:text-gray-400">
+            <svg class="mx-auto h-12 w-12 mb-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            <span id="fileName" class="block font-medium">Click to upload or drag & drop</span>
+            <span class="text-xs mt-1 block">PDF files only</span>
+          </div>
+        </div>
+
+        <!-- Split Options -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">Split Mode</label>
+            <select
+              id="splitMode"
+              class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="byPages">Every X pages per file</option>
+              <option value="byFiles">Split into X files</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2">Value (X)</label>
+            <input
+              type="number"
+              id="splitValue"
+              min="1"
+              value="1"
+              class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="submitBtn"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+        >
+          <span id="btnText">Split PDF Now</span>
+          <div id="btnLoader" class="loader hidden"></div>
+        </button>
+      </form>
+    </div>
+
+    <script>
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('pdfFile');
+      const fileName = document.getElementById('fileName');
+      const form = document.getElementById('pdfForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnLoader = document.getElementById('btnLoader');
+
+      dropzone.addEventListener('click', () => fileInput.click());
+      dropzone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropzone.classList.add('drag-active');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-active'));
+      dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-active');
+        if (e.dataTransfer.files.length) {
+          fileInput.files = e.dataTransfer.files;
+          fileName.textContent = fileInput.files[0].name;
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) fileName.textContent = fileInput.files[0].name;
+      });
+
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!fileInput.files[0]) return alert('Please select a PDF file first.');
+
+        const formData = new FormData();
+        formData.append('pdfFile', fileInput.files[0]);
+        formData.append('splitMode', document.getElementById('splitMode').value);
+        formData.append('splitValue', document.getElementById('splitValue').value);
+
+        btnText.textContent = 'Splitting & Compressing...';
+        btnLoader.classList.remove('hidden');
+        submitBtn.disabled = true;
+
+        try {
+          const response = await fetch('/api/split', { method: 'POST', body: formData });
+
+          if (!response.ok) throw new Error('Server processing error');
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Split_${fileInput.files[0].name.replace('.pdf', '')}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (error) {
+          alert(error.message);
+        } finally {
+          btnText.textContent = 'Split PDF Now';
+          btnLoader.classList.add('hidden');
+          submitBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
